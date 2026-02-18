@@ -1,0 +1,50 @@
+name: Worflow Triggers
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    Deploy-AWS:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout Reviewapp code
+              uses: actions/checkout@v4
+            
+            - name: Setup Java
+              uses: actions/setup-java@v4
+              with:
+                java-version: '17'
+                distribution: 'temurin'
+            
+            - name: Build with Maven
+              run: mvn clean package
+#             working-directory: reviewapp (incase the pom.xml or other files inside a subfolder)                
+            
+            - name: Run Test
+              run: mvn test
+            
+            - name: Copy artifact to ${{ secrets.EC2_HOST }}
+              uses: appleboy/scp-action@v1
+              with:
+                host: ${{ secrets.EC2_HOST }}
+                username: ${{ secrets.EC2_USER }}
+                key: ${{ secrets.EC2_SSH_KEY }} 
+                source: "target/*.jar"
+                target: "/opt/reviewapp"
+            
+            - name: Restart the Reviewapp Service
+              uses: appleboy/ssh-action@v1
+              with:
+                host: ${{ secrets.EC2_HOST }}
+                username: ${{ secrets.EC2_USER }}
+                key: ${{ secrets.EC2_SSH_KEY }} 
+                script: |
+                    sudo systemctl restart reviewapp
+                
+
+
+
+
+
